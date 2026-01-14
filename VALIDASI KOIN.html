@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>ARENA303 - Deposit & Withdraw Validator</title>
+<style>
+body{
+    background:
+        linear-gradient(rgba(0,0,0,0.78), rgba(0,0,0,0.78)),
+        url("https://cdn.areabermain.club/assets/cdn/az6/2026/01/12/20260112/f32535f496d3334f2061bf124fb3bebf/arena303-backgroundweb.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color:white;
+    font-family:Arial;
+    padding:20px;
+}
+
+h2{text-align:center;color:#ff9900;margin-bottom:20px;}
+
+input,textarea,button{
+    width:100%;
+    margin:10px 0;
+    padding:10px;
+}
+
+textarea{
+    height:120px;
+    background:#111;
+    color:#0f0;
+    font-size:12px;
+}
+
+button{
+    background:linear-gradient(45deg,#ff3300,#ff9900);
+    border:none;
+    color:white;
+    font-size:16px;
+    cursor:pointer;
+    border-radius:8px;
+    box-shadow:0 0 15px rgba(255,140,0,.8);
+}
+
+.copy-btn{
+    background:linear-gradient(45deg,#33ccff,#3399ff);
+    margin-top:5px;
+}
+
+.table-wrapper{
+    overflow-x:auto;
+    margin-top:10px;
+}
+
+table{
+    border-collapse:collapse;
+    margin-top:10px;
+    table-layout:auto;
+    font-size:12px;
+    box-shadow:0 0 25px rgba(255,150,0,0.2);
+}
+
+th,td{
+    border:1px solid #444;
+    padding:2px 4px;
+    text-align:center;
+    white-space: nowrap;
+}
+
+th{background:#222;color:#ff9900;}
+
+th.total-form, td.total-form{ width:50px; }
+th.total-koin, td.total-koin{ width:140px; }
+
+.section-box{
+    background: rgba(0,0,0,0.65);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 40px;
+    box-shadow:
+        0 0 30px rgba(255,153,0,0.25),
+        inset 0 0 20px rgba(255,153,0,0.15);
+    backdrop-filter: blur(6px);
+}
+
+.section-title{
+    font-size:18px;
+    font-weight:bold;
+    margin-bottom:15px;
+    color:#ffcc00;
+    text-shadow:0 0 10px rgba(255,180,0,0.8);
+}
+
+input, textarea{
+    border:1px solid #333;
+    box-shadow:0 0 10px rgba(255,150,0,0.25);
+}
+</style>
+</head>
+<body>
+
+<!-- LOGO -->
+<div style="text-align:center;margin-bottom:20px;">
+    <img src="https://cdn.areabermain.club/assets/cdn/az6/2026/01/12/20260112/2760b364348644bfec96ec1f8b4676fe/arena303-logo-fix-besar.png"
+         style="max-width:320px;width:100%;height:auto;">
+</div>
+
+<h2>ARENA303 - Deposit & Withdraw Validator</h2>
+
+<!-- DEPOSIT -->
+<div class="section-box">
+<div class="section-title">Deposit Validator</div>
+<input type="file" id="depositFileInput" multiple accept=".csv,.xlsx">
+<textarea id="depositLog" placeholder="Log deposit akan muncul di sini..."></textarea>
+<button onclick="generateDeposit()">GENERATE DEPOSIT</button>
+<button class="copy-btn" onclick="copyDeposit()">COPY TOTAL FORM & KOIN DEPOSIT</button>
+
+<div class="table-wrapper">
+<table>
+<thead id="depositTableHead"></thead>
+<tbody id="depositResult"></tbody>
+</table>
+</div>
+</div>
+
+<!-- WITHDRAW -->
+<div class="section-box">
+<div class="section-title">Withdraw Validator</div>
+<input type="file" id="withdrawFileInput" multiple accept=".csv,.xlsx">
+<textarea id="withdrawLog" placeholder="Log withdraw akan muncul di sini..."></textarea>
+<button onclick="generateWithdraw()">GENERATE WITHDRAW</button>
+<button class="copy-btn" onclick="copyWithdraw()">COPY TOTAL FORM & KOIN WITHDRAW</button>
+
+<div class="table-wrapper">
+<table>
+<thead id="withdrawTableHead"></thead>
+<tbody id="withdrawResult"></tbody>
+</table>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+const banks = ["BCA","MANDIRI","BNI","BRI","DANAMON","CIMB","BSI","MAYBANK","DANA","OVO","GOPAY","LINKAJA","JAGO","SEABANK","USDT"];
+
+// ===== DEPOSIT =====
+let depositRows=[];
+document.getElementById("depositFileInput").addEventListener("change", function(e){
+    depositRows=[];
+    document.getElementById("depositLog").value="";
+    let files=e.target.files;
+
+    Array.from(files).forEach(file=>{
+        let reader=new FileReader();
+        reader.onload=function(evt){
+            let data=new Uint8Array(evt.target.result);
+            let wb=XLSX.read(data,{type:"array"});
+            let sheet=wb.Sheets[wb.SheetNames[0]];
+            let json=XLSX.utils.sheet_to_json(sheet,{header:1});
+            json.slice(1).forEach(r=>{
+                if(r[10]=="Deposit" && r[11]=="Pass"){
+                    depositRows.push(r);
+                    document.getElementById("depositLog").value+=r[0]+"\t"+r[6]+"\t"+r[2]+"\n";
+                }
+            });
+        };
+        reader.readAsArrayBuffer(file);
+    });
+});
+
+function generateDeposit(){
+    let bankData={};
+    banks.forEach(b => bankData[b]={form:0,koin:0});
+    depositRows.forEach(r=>{
+        let bank=r[6];
+        let amount=parseFloat(String(r[2]).replace(/,/g,""));
+        if(bankData[bank]){
+            bankData[bank].form++;
+            bankData[bank].koin+=amount;
+        }
+    });
+
+    let thead="<tr>";
+    banks.forEach(b=>thead+=`<th colspan="2">${b}</th>`);
+    thead+="</tr><tr>";
+    banks.forEach(b=>thead+=`<th class="total-form">TOTAL FORM</th><th class="total-koin">TOTAL KOIN</th>`);
+    thead+="</tr>";
+    document.getElementById("depositTableHead").innerHTML=thead;
+
+    let row="<tr>";
+    banks.forEach(b=>row+=`<td class="total-form">${bankData[b].form}</td><td class="total-koin">${bankData[b].koin.toLocaleString()}</td>`);
+    row+="</tr>";
+    document.getElementById("depositResult").innerHTML=row;
+}
+
+// Copy Deposit Form + Koin
+function copyDeposit(){
+    let data="";
+    banks.forEach((b,i)=>{
+        const formCell=document.querySelector(`#depositResult td.total-form:nth-child(${i*2+1})`);
+        const koinCell=document.querySelector(`#depositResult td.total-koin:nth-child(${i*2+2})`);
+        if(formCell && koinCell){
+            data+=formCell.textContent+"\t"+koinCell.textContent+"\t";
+        }
+    });
+    navigator.clipboard.writeText(data.trim()).then(()=>alert("Total Form & Koin Deposit berhasil dicopy!"));
+}
+
+// ===== WITHDRAW =====
+let withdrawRows=[];
+document.getElementById("withdrawFileInput").addEventListener("change", function(e){
+    withdrawRows=[];
+    document.getElementById("withdrawLog").value="";
+    let files=e.target.files;
+
+    Array.from(files).forEach(file=>{
+        let reader=new FileReader();
+        reader.onload=function(evt){
+            let data=new Uint8Array(evt.target.result);
+            let wb=XLSX.read(data,{type:"array"});
+            let sheet=wb.Sheets[wb.SheetNames[0]];
+            let json=XLSX.utils.sheet_to_json(sheet,{header:1});
+            json.slice(1).forEach(r=>{
+                if(r[10] && r[10].toString().includes("Withdraw") && r[11]=="Pass"){
+                    withdrawRows.push(r);
+                    document.getElementById("withdrawLog").value+=r[0]+"\t"+r[6]+"\t"+r[2]+"\n";
+                }
+            });
+        };
+        reader.readAsArrayBuffer(file);
+    });
+});
+
+function generateWithdraw(){
+    let bankData={};
+    banks.forEach(b => bankData[b]={form:0,koin:0});
+    withdrawRows.forEach(r=>{
+        let bank=r[6];
+        let amount=parseFloat(String(r[2]).replace(/,/g,""));
+        if(bankData[bank]){
+            bankData[bank].form++;
+            bankData[bank].koin+=amount;
+        }
+    });
+
+    let thead="<tr>";
+    banks.forEach(b=>thead+=`<th colspan="2">${b}</th>`);
+    thead+="</tr><tr>";
+    banks.forEach(b=>thead+=`<th class="total-form">TOTAL FORM</th><th class="total-koin">TOTAL KOIN</th>`);
+    thead+="</tr>";
+    document.getElementById("withdrawTableHead").innerHTML=thead;
+
+    let row="<tr>";
+    banks.forEach(b=>row+=`<td class="total-form">${bankData[b].form}</td><td class="total-koin">${bankData[b].koin.toLocaleString()}</td>`);
+    row+="</tr>";
+    document.getElementById("withdrawResult").innerHTML=row;
+}
+
+// Copy Withdraw Form + Koin
+function copyWithdraw(){
+    let data="";
+    banks.forEach((b,i)=>{
+        const formCell=document.querySelector(`#withdrawResult td.total-form:nth-child(${i*2+1})`);
+        const koinCell=document.querySelector(`#withdrawResult td.total-koin:nth-child(${i*2+2})`);
+        if(formCell && koinCell){
+            data+=formCell.textContent+"\t"+koinCell.textContent+"\t";
+        }
+    });
+    navigator.clipboard.writeText(data.trim()).then(()=>alert("Total Form & Koin Withdraw berhasil dicopy!"));
+}
+</script>
+</body>
+</html>
